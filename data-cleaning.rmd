@@ -1,0 +1,16 @@
+---
+title: "Data Cleaning"
+author: "Robert McGuinn"
+date: "2/4/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Read in the data
+
+# Make the data tidy
+
+# Join to other data
