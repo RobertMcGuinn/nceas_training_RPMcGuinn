@@ -1,0 +1,98 @@
+---
+title: "data_cleaning_on_your_own"
+author: "Robert McGuinn"
+date: "2/5/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r install, echo=F, warning=F, message=F}
+
+library(tidyr)
+library(dplyr)
+
+```
+
+# Read data
+
+```{r}
+
+##### read in data from URL #####
+
+esc <- read.csv(url("https://knb.ecoinformatics.org/knb/d1/mn/v2/object/urn%3Auuid%3Af119a05b-bbe7-4aea-93c6-85434dcb1c5e", method='libcurl'), stringsAsFactors = F)
+
+goals <- read.csv(url("https://knb.ecoinformatics.org/knb/d1/mn/v2/object/knb.92014.1", method = 'libcurl'), stringsAsFactors = F) 
+
+```
+
+# Filtering data 
+
+Looking for annual 'Sockeye' escapements in 'Bristol Bay'
+
+```{r}
+
+esc_filt <- esc %>%  
+  separate(sampleDate, 
+           into =  c('year', 'month', 'day'), "-", 
+           remove = F) %>% 
+  filter(
+    SASAP.Region == 'Bristol Bay', 
+    Species == 'Sockeye' | Species == 'Late Run Sockeye'
+    ) %>% 
+  group_by(year, Location, Species) %>% 
+  summarise(ann_catch = sum(DailyCount))
+
+```
+
+#  Look at the goals data 
+
+```{r}
+
+names(goals)
+
+goals_filt <- goals %>% 
+  dplyr::select(Area, Species, Region, System, Lower, Upper, Type, Initial.Year) %>% 
+  filter(Region == 'Bristol Bay',
+         Species == 'Sockeye') %>%  
+  mutate(Lower = ifelse(Lower == "eliminated", NA, Lower)) %>% 
+  mutate(Lower = as.integer(Lower)) %>% 
+  group_by(Initial.Year, Region, System) %>% 
+  summarize(n=n())
+
+##### find the places where Chinook went wrong #####
+i <- which(is.na(as.numeric(goals_filt$Lower)))
+i
+
+##### look at this variable ##### 
+goals_filt[i,]
+
+
+```
+
+
+Create join 
+
+```{r}
+
+join <- left_join(esc_filt, goals_filt, by = c("year" = "Initial.Year"))
+                  
+          
+
+```
+
+View(join)
+
+
+
+
+
+
+
+
+
+
+
+
