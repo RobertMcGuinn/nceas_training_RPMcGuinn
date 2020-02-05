@@ -1,0 +1,73 @@
+---
+title: "Function"
+author: "Robert McGuinn"
+date: "2/5/2020"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(roxygen2)
+library(assertthat)
+```
+
+
+```{r}
+
+airtemps <- c(212, 30.3, 78, 32, 0)
+celsius1 <- (airtemps[1]-32)*5/9
+celsius2 <- (airtemps[2]-32)*5/9
+celsius3 <- (airtemps[3]-32)*5/9
+celsius4 <- (airtemps[4]-32)*5/9
+celsius5 <- (airtemps[5]-32)*5/9
+
+```
+
+# Define conversion functions
+
+
+```{r}
+
+#' Convert degrees Fahrenheit to Celcius
+#'
+#' We use the simple formula for temperature conversion
+#' to convert temperaturs
+#' @param fahr The temperature to be converted in degrees Fahrenheit
+#' @return the temperature converted to degrees Celcius
+#' @keywords conversion
+#' @examples
+#' fahr_to_celcius(32)
+#' fahr_to_celcius(c(212,100,32))
+
+fahr_to_celcius <- function(fahr){
+  # stopifnot(is.numeric(fahr))
+  assert_that(is.numeric(fahr))
+  celcius <- (fahr-32)*5/9
+  return(celcius)
+} 
+
+celsius <- fahr_to_celcius("red")
+celsius
+
+```
+
+
+```{r}
+
+fahr_to_celcius <- function(celsius){
+  fahr <- (celsius * 9/5) + 32
+  return(fahr)
+} 
+
+fahr_to_celcius(celsius)
+airtemps
+
+```
+
+
+
