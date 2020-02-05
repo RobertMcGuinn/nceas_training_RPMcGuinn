@@ -369,14 +369,155 @@ summary {
 </div>
 
 
-<div id="read-in-the-data" class="section level1">
-<h1>Read in the data</h1>
+<div id="read-data" class="section level1">
+<h1>Read data</h1>
+<pre class="r"><code>##### read in data from URL #####
+
+catch_orig &lt;- read.csv(url(&quot;https://knb.ecoinformatics.org/knb/d1/mn/v2/object/df35b.302.1&quot;, method=&#39;libcurl&#39;), stringsAsFactors = F)
+
+reg_def &lt;- read.csv(url(&quot;https://knb.ecoinformatics.org/knb/d1/mn/v2/object/df35b.303.1&quot;, method = &#39;libcurl&#39;), stringsAsFactors = F) %&gt;% dplyr::select(code, mgmtArea) %&gt;% rename(Region = code)</code></pre>
 </div>
-<div id="make-the-data-tidy" class="section level1">
-<h1>Make the data tidy</h1>
+<div id="make-data-tidy" class="section level1">
+<h1>Make data tidy</h1>
+<p>Remove the ‘notes’ and ‘’All’ columns. They are not needed. Also removing problem value within Chinook where ‘I’ was written instead of ‘1’. Fixing in this script below.</p>
+<pre class="r"><code>##### filter ##### 
+
+catch_clean &lt;- catch_orig %&gt;% 
+  dplyr::select(-All, 
+                -notesRegCode) %&gt;% 
+  mutate(Chinook = ifelse(Chinook == &quot;I&quot;, 1, Chinook)) %&gt;% 
+           mutate(Chinook = as.integer(Chinook)) 
+
+##### checking #####
+
+summary(catch_clean)</code></pre>
+<pre><code>##     Region               Year         Chinook          Sockeye        
+##  Length:1708        Min.   :1878   Min.   :  0.00   Min.   :    0.00  
+##  Class :character   1st Qu.:1922   1st Qu.:  0.00   1st Qu.:    6.75  
+##  Mode  :character   Median :1947   Median :  5.00   Median :  330.50  
+##                     Mean   :1946   Mean   : 34.95   Mean   : 1401.09  
+##                     3rd Qu.:1972   3rd Qu.: 35.00   3rd Qu.:  995.50  
+##                     Max.   :1997   Max.   :609.00   Max.   :44269.00  
+##       Coho             Pink              Chum        
+##  Min.   :   0.0   Min.   :    0.0   Min.   :    0.0  
+##  1st Qu.:   0.0   1st Qu.:    0.0   1st Qu.:    0.0  
+##  Median :  41.5   Median :   34.5   Median :   63.0  
+##  Mean   : 150.4   Mean   : 2357.8   Mean   :  422.0  
+##  3rd Qu.: 175.0   3rd Qu.: 1622.5   3rd Qu.:  507.5  
+##  Max.   :3220.0   Max.   :53676.0   Max.   :10459.0</code></pre>
+<div id="data-qa" class="section level2">
+<h2>Data QA</h2>
+<p>Checking for NA values in Chinook.</p>
+<pre class="r"><code>##### find the places where Chinook went wrong #####
+i &lt;- which(is.na(catch_clean$Chinook))
+i</code></pre>
+<pre><code>## integer(0)</code></pre>
+<pre class="r"><code>##### look at this variable ##### 
+catch_orig[i,]</code></pre>
+<pre><code>## [1] Region       Year         Chinook      Sockeye      Coho        
+## [6] Pink         Chum         All          notesRegCode
+## &lt;0 rows&gt; (or 0-length row.names)</code></pre>
+<p>Looks like ‘l’ was put in instead of ‘1’.</p>
+</div>
+<div id="convert-to-long-format" class="section level2">
+<h2>Convert to long format</h2>
+<p>We now want to convert to long format. Also making change to catch values, because the catch variable originally represented thousands of fish.</p>
+<pre class="r"><code>catch_long &lt;- catch_clean %&gt;% 
+  pivot_longer(cols = -c(Region, Year), 
+               names_to = &#39;species&#39;, 
+               values_to = &#39;catch&#39;) %&gt;%
+  rename(catch_thousands = catch) %&gt;% 
+  mutate(catch = catch_thousands*1000) %&gt;% 
+  dplyr::select(-catch_thousands)
+  
+head(catch_long)</code></pre>
+<pre><code>## # A tibble: 6 x 4
+##   Region  Year species catch
+##   &lt;chr&gt;  &lt;int&gt; &lt;chr&gt;   &lt;dbl&gt;
+## 1 SSE     1886 Chinook     0
+## 2 SSE     1886 Sockeye  5000
+## 3 SSE     1886 Coho        0
+## 4 SSE     1886 Pink        0
+## 5 SSE     1886 Chum        0
+## 6 SSE     1887 Chinook     0</code></pre>
+<p>Reversing the transpose.</p>
+<pre class="r"><code>catch_wide &lt;- catch_long %&gt;% 
+  pivot_wider(names_from = &#39;species&#39;, values_from = &#39;catch&#39;)
+
+head(catch_wide)</code></pre>
+<pre><code>## # A tibble: 6 x 7
+##   Region  Year Chinook Sockeye  Coho  Pink  Chum
+##   &lt;chr&gt;  &lt;int&gt;   &lt;dbl&gt;   &lt;dbl&gt; &lt;dbl&gt; &lt;dbl&gt; &lt;dbl&gt;
+## 1 SSE     1886       0    5000     0     0     0
+## 2 SSE     1887       0  155000     0     0     0
+## 3 SSE     1888       0  224000 16000     0     0
+## 4 SSE     1889       0  182000 11000 92000     0
+## 5 SSE     1890       0  251000 42000     0     0
+## 6 SSE     1891       0  274000 24000     0     0</code></pre>
+</div>
+</div>
+<div id="summarize" class="section level1">
+<h1>Summarize</h1>
+<p>Here we calculate some means over each Region.</p>
+<pre class="r"><code>mean_region &lt;- catch_long %&gt;% 
+  group_by(Region ) %&gt;% 
+  summarise(mean = mean(catch), 
+            n_obs=n())</code></pre>
+<p>Here we just look at ‘Sockeye’</p>
+<pre class="r"><code>options(scipen = 10000, digits = 3)
+
+sockeye_catch &lt;- catch_long %&gt;% 
+  filter(species == &quot;Sockeye&quot;) %&gt;% 
+  group_by(Region) %&gt;% 
+  summarise(mean = mean(catch), 
+            n_obs=n()) %&gt;% 
+  arrange(desc(mean))</code></pre>
 </div>
 <div id="join-to-other-data" class="section level1">
 <h1>Join to other data</h1>
+<p>Merge region definitions.</p>
+<pre class="r"><code>catch_join &lt;- left_join(catch_long, reg_def, 
+                by = c(&quot;Region&quot;))
+
+##### checking ##### 
+
+# head(catch_join)
+# length(catch_join$Region)</code></pre>
+<p>This is how you to some parsing.</p>
+<pre class="r"><code>sites_df &lt;- data.frame(site = c(&quot;HAW-101&quot;,
+                                &quot;HAW-103&quot;,
+                                &quot;OAH-320&quot;,
+                                &quot;OAH-219&quot;,
+                                &quot;MAI-039&quot;),
+                       stringsAsFactors = FALSE)
+
+sites_df %&gt;% 
+  separate(site, into =  c(&quot;island&quot;, &quot;site_number&quot;), &quot;-&quot;, remove = F)</code></pre>
+<pre><code>##      site island site_number
+## 1 HAW-101    HAW         101
+## 2 HAW-103    HAW         103
+## 3 OAH-320    OAH         320
+## 4 OAH-219    OAH         219
+## 5 MAI-039    MAI         039</code></pre>
+<p>Here is how you do a paste.</p>
+<pre class="r"><code>dates_df &lt;- data.frame(year = c(&quot;1930&quot;,
+                                &quot;1930&quot;,
+                                &quot;1930&quot;),
+                       month = c(&quot;12&quot;,
+                                &quot;12&quot;,
+                                &quot;12&quot;),
+                       day = c(&quot;14&quot;,
+                               &quot;15&quot;,
+                               &quot;16&quot;),
+                       stringsAsFactors = FALSE)
+
+dates_df %&gt;% 
+  unite(date, year, month, day, sep = &quot;-&quot;, 
+        remove = F)</code></pre>
+<pre><code>##         date year month day
+## 1 1930-12-14 1930    12  14
+## 2 1930-12-15 1930    12  15
+## 3 1930-12-16 1930    12  16</code></pre>
 </div>
 
 
