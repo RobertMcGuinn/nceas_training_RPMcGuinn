@@ -12,8 +12,16 @@ knitr::opts_chunk$set(echo = TRUE)
 ```
 
 ```{r}
+
+source('conversions.R')
+
+```
+
+
+```{r}
 library(roxygen2)
 library(assertthat)
+library(mytools)
 ```
 
 
@@ -59,13 +67,11 @@ celsius
 
 ```{r}
 
-fahr_to_celcius <- function(celsius){
-  fahr <- (celsius * 9/5) + 32
-  return(fahr)
-} 
+# fahr_to_celcius <- function(celsius){
+#   fahr <- (celsius * 9/5) + 32
+#   return(fahr)
+# } 
 
-fahr_to_celcius(celsius)
-airtemps
 
 ```
 
