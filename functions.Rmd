@@ -4,7 +4,7 @@ author: "Robert McGuinn"
 date: "2/5/2020"
 output: html_document
 editor_options: 
-  chunk_output_type: console
+  chunk_output_type: inline
 ---
 
 ```{r setup, include=FALSE}
@@ -12,9 +12,7 @@ knitr::opts_chunk$set(echo = TRUE)
 ```
 
 ```{r}
-
 source('conversions.R')
-
 ```
 
 
@@ -55,22 +53,32 @@ celsius5 <- (airtemps[5]-32)*5/9
 fahr_to_celcius <- function(fahr){
   # stopifnot(is.numeric(fahr))
   assert_that(is.numeric(fahr))
+
   celcius <- (fahr-32)*5/9
   return(celcius)
 } 
 
-celsius <- fahr_to_celcius("red")
+
+# celsius <- fahr_to_celcius("red")
+# celsius
+
+celsius <- fahr_to_celcius(airtemps)
 celsius
+
 
 ```
 
 
 ```{r}
 
-# fahr_to_celcius <- function(celsius){
-#   fahr <- (celsius * 9/5) + 32
-#   return(fahr)
-# } 
+
+fahr_to_celcius <- function(celsius){
+  fahr <- (celsius * 9/5) + 32
+  return(fahr)
+} 
+
+fahr_to_celcius(celsius)
+airtemps
 
 
 ```

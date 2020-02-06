@@ -3,14 +3,178 @@ title: "Data Cleaning"
 author: "Robert McGuinn"
 date: "2/4/2020"
 output: html_document
+editor_options: 
+  chunk_output_type: console
 ---
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-# Read in the data
+```{r install, echo=F, warning=F, message=F}
 
-# Make the data tidy
+library(tidyr)
+library(dplyr)
+
+```
+
+# Read data
+
+```{r}
+
+##### read in data from URL #####
+
+catch_orig <- read.csv(url("https://knb.ecoinformatics.org/knb/d1/mn/v2/object/df35b.302.1", method='libcurl'), stringsAsFactors = F)
+
+reg_def <- read.csv(url("https://knb.ecoinformatics.org/knb/d1/mn/v2/object/df35b.303.1", method = 'libcurl'), stringsAsFactors = F) %>% dplyr::select(code, mgmtArea) %>% rename(Region = code)
+
+```
+
+# Make data tidy
+
+Remove the 'notes' and ''All' columns. They are not needed. Also removing problem value within Chinook where 'I' was written instead of '1'.  Fixing in this script below.
+
+```{r}
+
+##### filter ##### 
+
+catch_clean <- catch_orig %>% 
+  dplyr::select(-All, 
+                -notesRegCode) %>% 
+  mutate(Chinook = ifelse(Chinook == "I", 1, Chinook)) %>% 
+           mutate(Chinook = as.integer(Chinook)) 
+
+##### checking #####
+
+summary(catch_clean)
+
+```
+
+## Data QA
+
+Checking for NA values in Chinook.
+
+```{r}
+
+##### find the places where Chinook went wrong #####
+i <- which(is.na(catch_clean$Chinook))
+i
+
+##### look at this variable ##### 
+catch_orig[i,]
+
+```
+
+Looks like 'l' was put in instead of '1'. 
+
+## Convert to long format
+
+We now want to convert to long format. Also making change to catch values, because the catch variable originally represented thousands of fish.  
+
+```{r}
+
+catch_long <- catch_clean %>% 
+  pivot_longer(cols = -c(Region, Year), 
+               names_to = 'species', 
+               values_to = 'catch') %>%
+  rename(catch_thousands = catch) %>% 
+  mutate(catch = catch_thousands*1000) %>% 
+  dplyr::select(-catch_thousands)
+  
+head(catch_long)
+
+```
+
+Reversing the transpose.
+
+```{r}
+
+catch_wide <- catch_long %>% 
+  pivot_wider(names_from = 'species', values_from = 'catch')
+
+head(catch_wide)
+```
+
+
+# Summarize
+
+Here we calculate some means over each Region.
+
+```{r}
+
+mean_region <- catch_long %>% 
+  group_by(Region ) %>% 
+  summarise(mean = mean(catch), 
+            n_obs=n())
+
+```
+
+Here we just look at 'Sockeye'
+
+```{r}
+
+options(scipen = 10000, digits = 3)
+
+sockeye_catch <- catch_long %>% 
+  filter(species == "Sockeye") %>% 
+  group_by(Region) %>% 
+  summarise(mean = mean(catch), 
+            n_obs=n()) %>% 
+  arrange(desc(mean))
+
+```
 
 # Join to other data
+
+Merge region definitions. 
+
+```{r}
+
+catch_join <- left_join(catch_long, reg_def, 
+                by = c("Region"))
+
+##### checking ##### 
+
+# head(catch_join)
+# length(catch_join$Region)
+
+```
+
+This is how you to some parsing.
+
+
+```{r}
+sites_df <- data.frame(site = c("HAW-101",
+                                "HAW-103",
+                                "OAH-320",
+                                "OAH-219",
+                                "MAI-039"),
+                       stringsAsFactors = FALSE)
+
+sites_df %>% 
+  separate(site, into =  c("island", "site_number"), "-", remove = F)
+
+
+```
+
+
+Here is how you do a paste. 
+
+
+```{r}
+dates_df <- data.frame(year = c("1930",
+                                "1930",
+                                "1930"),
+                       month = c("12",
+                                "12",
+                                "12"),
+                       day = c("14",
+                               "15",
+                               "16"),
+                       stringsAsFactors = FALSE)
+
+dates_df %>% 
+  unite(date, year, month, day, sep = "-", 
+        remove = F)
+```
+
