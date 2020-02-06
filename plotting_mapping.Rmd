@@ -1,0 +1,157 @@
+---
+title: "plotting"
+author: "Robert McGuinn"
+date: "2/6/2020"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+
+  library(leaflet)
+  library(dplyr)
+  library(tidyr)
+  library(ggplot2)
+  library(DT)
+  library(scales) # install.packages("scales")
+
+```
+
+# read in data 
+
+```{r}
+
+data_url <- "https://knb.ecoinformatics.org/knb/d1/mn/v2/object/urn%3Auuid%3Af119a05b-bbe7-4aea-93c6-85434dcb1c5e"
+
+###### use tryCatch for error stuff #####
+esc <- tryCatch(
+    read.csv("data/escapement.csv", stringsAsFactors = FALSE),
+    error=function(cond) {
+        message(paste("Escapement file does not seem to exist, so get it from the KNB."))
+        esc <- read.csv(url(data_url, method = "libcurl"), stringsAsFactors = FALSE)
+        return(esc)
+    }
+)
+
+head(esc)
+```
+
+# tidy data
+
+```{r}
+
+esc_clean <-  esc %>% 
+  separate(sampleDate, into = c("Year", "Month", "Day"), sep = "-") %>% 
+  mutate(Year = as.numeric(Year)) %>% 
+  group_by(Species, SASAP.Region, Year) %>% 
+  summarize(Escapement = sum(DailyCount)) %>% 
+  filter(Species %in% c('Pink', "Sockeye", "Chinook", "Chum", "Coho"))
+
+```
+
+# plots 
+
+```{r}
+# also check out 'cowplot' and 'gridExtra' and 'ggarrange' arranging plots.
+
+esc_clean %>% 
+  ggplot(mapping = aes(x = Species, 
+                       y = Escapement, 
+                       fill = SASAP.Region)) +
+  geom_col()
+
+```
+
+```{r}
+
+kodiak_esc <- esc_clean %>% 
+  filter(SASAP.Region == "Kodiak") 
+  
+# getting your own theme setup 
+# add this to the top of your RMarkdown
+# you could put this in a source
+
+mytheme <-  theme_bw() + 
+  theme(legend.position = 'bottom',
+        legend.title = element_blank())
+  
+kodiak_esc %>%
+  ggplot(mapping = aes(x = Year,  y = Escapement, color = Species)) +
+  geom_line() +
+  geom_point() + 
+  scale_y_continuous(trans = 'log10', 
+                     labels = comma) +
+  ylab("Escapement (num fish)")+
+  ggtitle("Kodiak Salmon Escapement") + 
+  mytheme
+
+
+
+```
+
+```{r}
+esc_clean %>%
+  ggplot(mapping = aes(x = Year,  y = Escapement, color = Species)) +
+  geom_line() +
+  geom_point() + 
+  scale_y_continuous(trans = 'log10', 
+                     labels = comma) +
+  facet_wrap(~SASAP.Region, 
+             scales = 'free_y',
+             ncol = 2) +
+  mytheme
+
+```
+
+# maps
+
+```{r}
+
+locations <- esc %>% 
+  distinct(Location, Latitude, Longitude) %>% 
+  drop_na()
+
+head(locations)
+datatable(locations)
+
+```
+
+
+```{r}
+locations %>% leaflet() %>% 
+  addTiles() %>% 
+  addMarkers(lng = ~Longitude, 
+             lat = ~Latitude, 
+             popup = ~Location)
+
+#This is how you add image to popup: popup = "<img src='url' width = '20%'/>"
+
+```
+
+
+```{r}
+leaflet(locations) %>% 
+  addWMSTiles("https://www.gebco.net/data_and_products/gebco_web_services/web_map_service/mapserv?",
+              layers = 'GEBCO_LATEST',
+              attribution = "Imagery reproduced from the GEBCO_2014 Grid, version 20150318, www.gebco.net") %>%
+  addCircleMarkers(lng = ~Longitude,
+                   lat = ~Latitude,
+                   popup = ~ Location,
+                   radius = 5,
+                   # set fill properties
+                   fillColor = "salmon",
+                   fillOpacity = 1,
+                   # set stroke properties
+                   stroke = T,
+                   weight = 0.5,
+                   color = "white",
+                   opacity = 1)
+```
+
+
+
