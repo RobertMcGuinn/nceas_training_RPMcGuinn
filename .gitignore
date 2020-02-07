@@ -42,4 +42,5 @@ vignettes/*.pdf
 # R Environment Variables
 .Renviron
 
+# ignore gis folder 
 /gis/
