@@ -57,7 +57,7 @@ esc_clean <-  esc %>%
 # plots 
 
 ```{r}
-# also check out 'cowplot' and 'gridExtra' and 'ggarrange' arranging plots.
+# also check out 'cowplot' and 'gridExtra' and 'ggarrange' arranging plots, # also look up 'patchwork' newer package.
 
 esc_clean %>% 
   ggplot(mapping = aes(x = Species, 
